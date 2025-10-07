@@ -1,116 +1,69 @@
+#include <sys/types.h>
 #include <sys/resource.h>
+#include <sys/time.h>
 #include <unistd.h>
-#include <stdio.h>
+#include <ulimit.h>
 #include <stdlib.h>
-#include <errno.h>
-#include <string.h>
+#include <stdio.h>
+#define GET_FSLIM 1
+#define SET_FSLIM 2
+extern char **environ;
 
-int main(int argc, char *argv[]) {
+main(int argc, char *argv[])
+{
     int c;
+    char options[ ] = "ispuU:cC:dvV:";  /* valid options */
     struct rlimit rlp;
-    extern char **environ;
+    char **p;
 
     if(argc < 2) {
-        fprintf(stderr, "Usage: %s options\n", argv[0]);
-        fprintf(stderr, "Options: -i (user info), -s (setpgid), -p (process info)\n");
-        fprintf(stderr, "         -u (show ulimit), -U val (set ulimit)\n");
-        fprintf(stderr, "         -c (show core limit), -C val (set core limit)\n");
-        fprintf(stderr, "         -d (current directory), -v (environment)\n");
-        fprintf(stderr, "         -V var=val (set environment variable)\n");
-        return 1;
-    }
+    fprintf(stderr,"Usage: %s options\n", argv[0]);
+    exit(0);
+     }
 
-    while ((c = getopt(argc, argv, "ispuU:cC:dvV:")) != -1) {
-        switch (c) {
-            case 'i': 
-                printf("UID:%d/%d GID:%d/%d\n", 
-                       getuid(), geteuid(), 
-                       getgid(), getegid());
-                break;
-                
-            case 's': 
-                if (setpgid(0, 0) == -1) {
-                    fprintf(stderr, "setpgid error: %s\n", strerror(errno));
-                }
-                break;
-                
-            case 'p': 
-                printf("PID:%d PPID:%d PGID:%d\n", 
-                       getpid(), getppid(), getpgid(0));
-                break;
-                
-            case 'U': 
-                if (ulimit(2, atol(optarg)) == -1) {
-                    fprintf(stderr, "ulimit error: %s\n", strerror(errno));
-                }
-                break;
-                
-            case 'u': 
-                printf("ulimit=%ld\n", ulimit(1, 0));
-                break;
-                
-            case 'c': 
-                if (getrlimit(RLIMIT_CORE, &rlp) == -1) {
-                    fprintf(stderr, "getrlimit error: %s\n", strerror(errno));
-                } else {
-                    printf("core=%ld\n", (long)rlp.rlim_cur);
-                }
-                break;
-                
-            case 'C': 
-                if (getrlimit(RLIMIT_CORE, &rlp) == -1) {
-                    fprintf(stderr, "getrlimit error: %s\n", strerror(errno));
-                    break;
-                }
-                rlp.rlim_cur = atol(optarg);
-                if (setrlimit(RLIMIT_CORE, &rlp) == -1) {
-                    fprintf(stderr, "setrlimit error: %s\n", strerror(errno));
-                }
-                break;
-                
-            case 'd': {
-                char *cwd = getcwd(NULL, 0);
-                if (cwd == NULL) {
-                    fprintf(stderr, "getcwd error: %s\n", strerror(errno));
-                } else {
-                    printf("CWD:%s\n", cwd);
-                    free(cwd);
-                }
-                break;
-            }
-                
-            case 'v': 
-                for(char **p = environ; *p; p++) {
-                    printf("%s\n", *p);
-                }
-                break;
-                
-            case 'V': 
-                if (putenv(optarg) != 0) {
-                    fprintf(stderr, "putenv error: %s\n", strerror(errno));
-                }
-                break;
-                
-            case '?':
-                fprintf(stderr, "Unknown option: -%c\n", optopt);
-                fprintf(stderr, "Use valid options: ispuU:cC:dvV:\n");
-                return 1;
-                
-            default:
-                fprintf(stderr, "Unexpected error processing option: -%c\n", c);
-                return 1;
-        }
+    while ((c = getopt(argc, argv, options)) != EOF)
+    switch (c) {
+    case 'i':
+        printf("real userid = %ld\n", getuid());
+        printf("effective userid = %ld\n", geteuid());
+        printf("real groupid = %ld\n", getgid());
+        printf("effective groupid = %ld\n", getegid());
+        break;
+    case 's':
+        (void) setpgid(0,0);
+        break;
+    case 'p':
+        printf("process number = %ld\n", getpid());
+        printf("parent process number = %ld\n", getppid());
+        printf("group process number = %ld\n", getpgid(0));
+        break;
+    case 'U':
+        if( ulimit(SET_FSLIM, atol(optarg) ) == -1)
+        fprintf(stderr,"Must be super-user to increase ulimit\n");
+        break;
+    case 'u':
+        printf("ulimit = %ld\n", ulimit(GET_FSLIM, 0) );
+        break;
+    case 'c':
+        getrlimit(RLIMIT_CORE, &rlp);
+        printf("core size = %ld\n", rlp.rlim_cur);
+        break;
+    case 'C':
+        getrlimit(RLIMIT_CORE, &rlp);
+        rlp.rlim_cur = atol(optarg);
+        if (setrlimit(RLIMIT_CORE, &rlp) == -1)
+          fprintf(stderr, "Must be super-user to increase core\n");
+        break;
+    case 'd':
+        printf("current working directory is: %s\n", getcwd(NULL,100));
+        break;
+    case 'v':
+        printf("environment variables are:\n");
+        for (p = environ; *p; p++)
+          printf("%s\n", *p);
+        break;
+    case 'V':
+        putenv(optarg);
+        break;
     }
-
-    // Проверка на лишние аргументы
-    if (optind < argc) {
-        fprintf(stderr, "Unexpected arguments: ");
-        while (optind < argc) {
-            fprintf(stderr, "%s ", argv[optind++]);
-        }
-        fprintf(stderr, "\n");
-        return 1;
-    }
-
-    return 0;
 }
