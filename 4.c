@@ -1,40 +1,34 @@
-#include <sys/types.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 
 struct node {
-    char *data;
-    struct node* next;
+    char *text;
+    struct node *next;
 };
 
-int main(void)
-{
-    char line[BUFSIZ];
-    struct node *head, *here, *p, *create(char *);
-
-    head = malloc(sizeof(struct node));
-    head->next = NULL;
-    here = head;
-
-    printf("Enter lines of text:\n");
-    while (gets(line) != NULL) {
-        if (line[0] == '.')
-            break;
-        here->next = create(line);
-        here = here->next;
-    }
-    for (p = head->next; p != NULL; p = p->next)
-        puts(p->data);
+struct node* make_node(char *input) {
+    struct node *n = malloc(sizeof(struct node));
+    n->text = malloc(strlen(input) + 1);
+    strcpy(n->text, input);
+    n->next = NULL;
+    return n;
 }
 
-struct node *create(char *input)
-{
-    struct node *q;
+int main() {
+    char input[BUFSIZ];
+    struct node *head = malloc(sizeof(struct node));
+    head->next = NULL;
+    struct node *current = head;
 
-    q = malloc(sizeof(struct node));
-    q->data = malloc(strlen(input) + 1);
-    strcpy(q->data, input);
-    q->next = NULL;
-    return(q);
+    while (fgets(input, BUFSIZ, stdin)) {
+        if (input[0] == '.') break;
+        current->next = make_node(input);
+        current = current->next;
+    }
+
+    for (struct node *p = head->next; p; p = p->next)
+        printf("%s", p->text);
+    
+    return 0;
 }

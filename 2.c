@@ -1,26 +1,22 @@
-#include <sys/types.h>
 #include <stdio.h>
 #include <time.h>
 #include <stdlib.h>
-extern char *tzname[];
 
-int main(void)
-{
-    time_t now;
-    struct tm *sp;
-
-    // Устанавливаем временную зону для Калифорнии
+int main() {
+    time_t t;
+    struct tm *tm;
+    
     setenv("TZ", "PST8PDT", 1);
     tzset();
-
-    (void) time( &now );
-
-    printf("%s", ctime( &now ) );
-
-    sp = localtime(&now);
+    
+    time(&t);
+    printf("%s", ctime(&t));
+    
+    tm = localtime(&t);
     printf("%d/%d/%02d %d:%02d %s\n",
-        sp->tm_mon + 1, sp->tm_mday,
-        sp->tm_year, sp->tm_hour,
-        sp->tm_min, tzname[sp->tm_isdst]);
-    exit(0);
+           tm->tm_mon + 1, tm->tm_mday,
+           tm->tm_year % 100, tm->tm_hour,
+           tm->tm_min, tzname[tm->tm_isdst]);
+    
+    return 0;
 }
