@@ -60,7 +60,7 @@ int main(int argc, char *argv[]) {
                 fprintf(stderr,"Need root for core\n");
             break;
         case 'd':
-            printf("cwd=%s\n", getcwd(NULL,0)); // Безопасный вариант
+            printf("cwd=%s\n", getcwd(NULL,0));
             break;
         case 'v':
             for(p=environ; *p; p++) printf("%s\n", *p);
