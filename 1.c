@@ -34,17 +34,35 @@ int main(int argc, char *argv[]) {
             printf("pid=%ld ppid=%ld pgid=%ld\n", 
                    getpid(), getppid(), getpgid(0));
             break;
-        case 'U':
-            if(optarg == NULL) {
+        case 'U': {
+            if (optarg == NULL) {
                 fprintf(stderr, "Option -U requires argument\n");
                 break;
             }
-            if(ulimit(SET_LIM, atol(optarg)) == -1)
-                fprintf(stderr,"Need root for ulimit\n");
+            struct rlimit r;
+            if (getrlimit(RLIMIT_NPROC, &r) == -1) {
+                perror("getrlimit(RLIMIT_NPROC)");
+                break;
+            }
+            r.rlim_cur = (rlim_t)atoll(optarg);  // можно ниже/равно rlim_max
+            if (setrlimit(RLIMIT_NPROC, &r) == -1) {
+                perror("setrlimit(RLIMIT_NPROC)");
+            }
             break;
-        case 'u':
-            printf("ulimit=%ld\n", ulimit(GET_LIM,0));
+            }
+
+        case 'u': {
+            struct rlimit r;
+            if (getrlimit(RLIMIT_NPROC, &r) == -1) {
+                perror("getrlimit(RLIMIT_NPROC)");
+            } else {
+            if (r.rlim_cur == RLIM_INFINITY)
+                printf("ulimit=-1 (unlimited)\n");
+            else
+                printf("ulimit=%llu\n", (unsigned long long)r.rlim_cur);
+            }
             break;
+            }
         case 'c':
             getrlimit(RLIMIT_CORE, &r);
             printf("core=%ld\n", r.rlim_cur);

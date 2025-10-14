@@ -1,22 +1,49 @@
-#include <sys/types.h>
 #include <stdio.h>
-#include <time.h>
 #include <stdlib.h>
-extern char *tzname[];
+#include <unistd.h>
+#include <errno.h>
 
-int main(void)
-{
-    time_t now;
-    struct tm *sp;
+static void print_user_ids(void) {
+    printf("Real UID: %ld\n",  (long)getuid());
+    printf("Effective UID: %ld\n", (long)geteuid());
+}
 
-    (void) time( &now );
+static int try_open_file(const char *name) {
+    printf("Attempting to open: %s\n", name);
+    FILE *f = fopen(name, "r");
+    if (!f) {
+        perror("fopen");
+        return -1;
+    }
+    puts("File opened successfully");
+    fclose(f);
+    return 0;
+}
 
-    printf("%s", ctime( &now ) );
+int main(int argc, char **argv) {
+    const char *filename = (argc > 1) ? argv[1] : "secure_file.txt";
 
-    sp = localtime(&now);
-    printf("%d/%d/%02d %d:%02d %s\n",
-        sp->tm_mon + 1, sp->tm_mday,
-        sp->tm_year, sp->tm_hour,
-        sp->tm_min, tzname[sp->tm_isdst]);
-    exit(0);
+    puts("STEP 1: Initial state");
+    print_user_ids();
+
+    puts("\nSTEP 2: Try open with current privileges");
+    int first = try_open_file(filename);
+
+    puts("\nSTEP 3: Drop privileges (set effective UID = real UID)");
+    uid_t ruid = getuid();
+    if (setuid(ruid) == -1) {
+        perror("setuid");
+        return 1;
+    }
+    puts("After setuid():");
+    print_user_ids();
+
+    puts("\nSTEP 4: Try open again after dropping privileges");
+    int second = try_open_file(filename);
+
+    puts("\n=== SUMMARY ===");
+    printf("First attempt:  %s\n", (first  == 0) ? "SUCCESS" : "FAILED");
+    printf("Second attempt: %s\n", (second == 0) ? "SUCCESS" : "FAILED");
+
+    return 0;
 }
