@@ -1,11 +1,12 @@
-// result1-mini.c
 #define _GNU_SOURCE
+#define _XOPEN_SOURCE 700
 #include <sys/resource.h>
 #include <unistd.h>
 #include <ulimit.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <errno.h>
+#include <string.h>
 
 extern char **environ;
 
@@ -32,6 +33,7 @@ int main(int ac, char **av){
             printf("pid=%ld ppid=%ld pgid=%ld\n",
                    (long)getpid(),(long)getppid(),(long)getpgid(0));
             break;
+#ifdef RLIMIT_NPROC
         case 'u':
             if (getrlimit(RLIMIT_NPROC,&r)==0) printf("nproc=%ld\n",(long)r.rlim_cur);
             else perror("getrlimit");
@@ -41,6 +43,12 @@ int main(int ac, char **av){
             if (getrlimit(RLIMIT_NPROC,&r)==0){ r.rlim_cur=(rlim_t)v; if (setrlimit(RLIMIT_NPROC,&r)==-1) perror("setrlimit"); }
             else perror("getrlimit");
         } break;
+#else
+        case 'u':
+        case 'U':
+            fputs("RLIMIT_NPROC unsupported on this system\n",stderr);
+            break;
+#endif
         case 'c':
             if (getrlimit(RLIMIT_CORE,&r)==0) printf("core=%ld\n",(long)r.rlim_cur);
             else perror("getrlimit");
