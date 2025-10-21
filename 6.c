@@ -1,59 +1,77 @@
-#include <stdio.h>
-#include <unistd.h>
-#include <stdlib.h>
 #include <fcntl.h>
 #include <unistd.h>
-#include <string.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <signal.h>
 
-#define BUFSIZE 257
+#define MAXL 500
+#define BUFS 256
 
-main(int argc, char *argv[])
-{
-    long displ[500];
-    int fd1, fd2, i = 1, j = 0, line_no, line_ln[500];
-    char c, buf[BUFSIZE];
-    static char err_msg[32] = "Input file - ";
+static volatile sig_atomic_t timed_out = 0;
+static void on_alarm(int sig){ (void)sig; timed_out = 1; }
 
-    if ((fd1 = open("/dev/tty", O_RDONLY | O_NDELAY)) == -1) {
-        perror("/dev/tty");
-        exit(1);
+static void print_file_and_exit(int fd){
+    char b[BUFS];
+    lseek(fd, 0, SEEK_SET);
+    for(;;){
+        ssize_t r = read(fd, b, sizeof b);
+        if (r <= 0) break;
+        ssize_t w = 0; while (w < r){ ssize_t k = write(1, b + w, r - w); if (k < 0) break; w += k; }
+    }
+    write(1, "\n", 1);
+    _exit(0);
+}
+
+int main(int argc, char **argv){
+    if (argc < 2){ fprintf(stderr, "usage: %s file\n", argv[0]); return 2; }
+
+    int fd = open(argv[1], O_RDONLY);
+    if (fd < 0){ perror("open"); return 1; }
+
+    off_t off[MAXL+1]; int len[MAXL+1]; char nl[MAXL+1];
+    int i=1, cur=0; char ch; off_t pos=0;
+    off[1]=0;
+    while (read(fd,&ch,1)==1){
+        pos++;
+        if (ch=='\n'){ len[i]=cur+1; nl[i]=1; cur=0; off[++i]=pos; if(i>MAXL) break; }
+        else cur++;
+    }
+    if (cur && i<=MAXL){ len[i]=cur; nl[i]=0; i++; }
+    int cnt=i-1;
+    if (cnt<=0){ puts("empty file"); close(fd); return 0; }
+
+    struct sigaction sa = {0}; sa.sa_handler = on_alarm; sigaction(SIGALRM,&sa,NULL);
+
+    int first_prompt = 1; 
+    int n; char buf[BUFS];
+
+    for(;;){
+        timed_out = 0;
+        printf("Line number (<=0 to exit): "); fflush(stdout);
+
+        if (first_prompt){ alarm(5); }
+        int rc = scanf("%d",&n);
+        if (first_prompt){ alarm(0); }    
+        if (first_prompt && timed_out)      
+            print_file_and_exit(fd);
+        first_prompt = 0;              
+
+        if (rc != 1) break;
+        if (n <= 0) break;
+        if (n > cnt){ fprintf(stderr,"Bad Line Number\n"); continue; }
+
+        if (lseek(fd, off[n], SEEK_SET) < 0){ perror("lseek"); break; }
+        int left = len[n];
+        while (left > 0){
+            int chunk = left > BUFS ? BUFS : left;
+            ssize_t r = read(fd, buf, chunk);
+            if (r <= 0){ perror("read"); break; }
+            ssize_t w=0; while (w<r){ ssize_t k = write(1, buf+w, r-w); if (k<0){ perror("write"); break; } w+=k; }
+            left -= (int)r;
+        }
+        if (!nl[n]) write(1, "\n", 1);
     }
 
-    if ((fd2 = open(argv[1], O_RDONLY)) == -1) {
-        perror(strcat(err_msg, argv[1]));
-        exit(1);
-        }
-
-    displ[1] = 0L;
-    while(read(fd2, &c, 1))
-        if( c == '\n' ) {
-            j++;
-            line_ln[i++] = j;
-            displ[i] = lseek(fd2, 0L, 1);
-            j = 0;
-            }
-        else
-            j++;
-
-    for (;;) {
-        printf("you have 5 seconds to enter a line number\n");
-        sleep(5);
-        if ((i = read(fd1, buf, BUFSIZE)) == 0) {
-            lseek(fd2, SEEK_SET, 0);
-            while((i = read(fd2, buf, BUFSIZE)) > 0)
-                write(1, buf, i);
-            exit(0);
-        }
-        else {
-            buf[i] = '\0';
-            line_no = atoi(buf);
-            if(line_no <= 0)
-                exit(0);
-            lseek(fd2, displ[line_no], 0);
-            if(read(fd2, buf, line_ln[line_no]))
-                write(1, buf, line_ln[line_no]);
-            else
-                fprintf(stderr, "Bad Line Number\n");
-        }
-    }
+    close(fd);
+    return 0;
 }
