@@ -7,8 +7,8 @@ int signal_count;
 
 void handle_sigint(int sig) {
     signal_count++;
-    putchar(7);
-    fflush(stdout);
+    putchar(7);  // Звуковой сигнал
+    fflush(stdout);  // Немедленный вывод
 }
 
 void handle_sigquit(int sig) {
@@ -30,7 +30,7 @@ int main() {
     printf("Program is running. Press Ctrl+C to trigger SIGINT and Ctrl+\\ to trigger SIGQUIT.\n");
 
     while (1) {
-        pause();
+        pause();  // Ожидаем сигналы
     }
 
     return 0;
