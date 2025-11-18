@@ -22,7 +22,6 @@ int main(int argc, char *argv[]) {
         perror("execvp");
         exit(1);
     } else {
-        // Родитель: ждёт завершения команды
         int status;
         waitpid(pid, &status, 0);
 

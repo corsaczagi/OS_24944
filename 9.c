@@ -13,7 +13,7 @@ int main(){
     }
 
     if (pid == 0) {
-        execlp("cat", "cat", "9longfile.txt", NULL);
+        execlp("cat", "cat", "file-9.txt", NULL);
         perror("execlp");
         exit(1);
     } 
